@@ -16,7 +16,7 @@ import configparser
 import operator
 import random
 import socket
-import SocketServer
+import socketserver
 import sys
 import threading
 import time
@@ -314,7 +314,7 @@ class DNSHandler():
         else:
             return reply
 
-class UDPHandler(DNSHandler, SocketServer.BaseRequestHandler):
+class UDPHandler(DNSHandler, socketserver.BaseRequestHandler):
     """
     UDP DNS Handler for incoming requests
     """
@@ -325,7 +325,7 @@ class UDPHandler(DNSHandler, SocketServer.BaseRequestHandler):
         if response:
             socket.sendto(response, self.client_address)
 
-class TCPHandler(DNSHandler, SocketServer.BaseRequestHandler):
+class TCPHandler(DNSHandler, socketserver.BaseRequestHandler):
     """
     TCP DNS Handler for incoming requests
     """
@@ -344,9 +344,9 @@ class TCPHandler(DNSHandler, SocketServer.BaseRequestHandler):
             length = binascii.unhexlify("%04x" % len(response))
             self.request.sendall(length+response)
 
-class ThreadedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
+class ThreadedUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
 
-    # Override SocketServer.UDPServer to add extra parameters
+    # Override socketserver.UDPServer to add extra parameters
     def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
         self.nametodns  = nametodns
         self.nameservers = nameservers
@@ -354,14 +354,14 @@ class ThreadedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
         self.log = log
 
-        SocketServer.UDPServer.__init__(self,server_address,RequestHandlerClass)
+        socketserver.UDPServer.__init__(self,server_address,RequestHandlerClass)
 
-class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
     # Override default value
     allow_reuse_address = True
 
-    # Override SocketServer.TCPServer to add extra parameters
+    # Override socketserver.TCPServer to add extra parameters
     def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
         self.nametodns   = nametodns
         self.nameservers = nameservers
@@ -369,7 +369,7 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
         self.log = log
 
-        SocketServer.TCPServer.__init__(self,server_address,RequestHandlerClass)
+        socketserver.TCPServer.__init__(self,server_address,RequestHandlerClass)
 
 
 def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port="53", logfile=None):
