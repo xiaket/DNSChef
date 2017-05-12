@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#
 # DNSChef is a highly configurable DNS Proxy for Penetration Testers
 # and Malware Analysts. Please visit http://thesprawl.org/projects/dnschef/
 # for the latest version and documentation. Please forward all issues and
@@ -33,18 +32,23 @@ DNSCHEF_VERSION = "0.3"
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from optparse import OptionParser,OptionGroup
+from optparse import OptionParser, OptionGroup
 from ConfigParser import ConfigParser
+
+import base64
+import binascii
+import operator
+import os
+import random
+import socket
+import SocketServer
+import sys
+import threading
+import time
 
 from dnslib import *
 from IPy import IP
 
-import threading, random, operator, time
-import SocketServer, socket, sys, os
-import binascii
-import string
-import base64
-import time
 
 # DNSHandler Mixin. The class contains generic functions to parse DNS requests and
 # calculate an appropriate response based on user parameters.
