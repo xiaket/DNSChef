@@ -6,8 +6,7 @@ and Malware Analysts. Please visit http://thesprawl.org/projects/dnschef/
 for the latest version and documentation. Please forward all issues and
 concerns to iphelix [at] thesprawl.org.
 """
-
-DNSCHEF_VERSION = "0.3"
+__version__ = "0.3"
 
 from optparse import OptionParser, OptionGroup
 from ConfigParser import ConfigParser
@@ -25,6 +24,16 @@ import time
 from dnslib import DNSRecord, DNSHeader, RR, DNSLabel, QR, QTYPE, RDMAP
 from IPy import IP
 
+HEADER = """
+          _                _          __
+         | |              | |        / _|
+       __| |_ __  ___  ___| |__   ___| |_
+      / _` | '_ \/ __|/ __| '_ \ / _ \  _|
+     | (_| | | | \__ \ (__| | | |  __/ |
+      \__,_|_| |_|___/\___|_| |_|\___|_|
+                   iphelix@thesprawl.org
+                   version %s
+""" % __version__
 
 class DNSHandler():
     """
@@ -362,6 +371,7 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
         SocketServer.TCPServer.__init__(self,server_address,RequestHandlerClass)
 
+
 def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port="53", logfile=None):
     """
     Initialize and start the DNS Server
@@ -407,18 +417,9 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
     except Exception as e:
         print("[!] Failed to start the server: %s" % e)
 
-if __name__ == "__main__":
-
-    header  = "          _                _          __  \n"
-    header += "         | | version %s  | |        / _| \n" % DNSCHEF_VERSION
-    header += "       __| |_ __  ___  ___| |__   ___| |_ \n"
-    header += "      / _` | '_ \/ __|/ __| '_ \ / _ \  _|\n"
-    header += "     | (_| | | | \__ \ (__| | | |  __/ |  \n"
-    header += "      \__,_|_| |_|___/\___|_| |_|\___|_|  \n"
-    header += "                   iphelix@thesprawl.org  \n"
-
+def main():
     # Parse command line arguments
-    parser = OptionParser(usage = "dnschef.py [options]:\n" + header, description="DNSChef is a highly configurable DNS Proxy for Penetration Testers and Malware Analysts. It is capable of fine configuration of which DNS replies to modify or to simply proxy with real responses. In order to take advantage of the tool you must either manually configure or poison DNS server entry to point to DNSChef. The tool requires root privileges to run on privileged ports." )
+    parser = OptionParser(usage = "dnschef.py [options]:\n" + HEADER, description="DNSChef is a highly configurable DNS Proxy for Penetration Testers and Malware Analysts. It is capable of fine configuration of which DNS replies to modify or to simply proxy with real responses. In order to take advantage of the tool you must either manually configure or poison DNS server entry to point to DNSChef. The tool requires root privileges to run on privileged ports." )
 
     fakegroup = OptionGroup(parser, "Fake DNS records:")
     fakegroup.add_option('--fakeip', metavar="192.0.2.1", action="store", help='IP address to use for matching DNS queries. If you use this parameter without specifying domain names, then all \'A\' queries will be spoofed. Consider using --file argument if you need to define more than one IP address.')
@@ -446,7 +447,7 @@ if __name__ == "__main__":
 
     # Print program header
     if options.verbose:
-        print(header)
+        print(HEADER)
 
     # Main storage of domain filters
     # NOTE: RDMAP is a dictionary map of qtype strings to handling classes
@@ -599,3 +600,7 @@ if __name__ == "__main__":
 
     # Launch DNSChef
     start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
+
+
+if __name__ == "__main__":
+    main()
