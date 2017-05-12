@@ -40,7 +40,7 @@ class DNSHandler():
             # Parse data as DNS
             d = DNSRecord.parse(data)
 
-        except Exception, e:
+        except Exception as e:
             print("[%s] %s: ERROR: %s" % (time.strftime("%H:%M:%S"), self.client_address[0], "invalid DNS request"))
             if self.server.log: self.server.log.write("[%s] %s: ERROR: %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], "invalid DNS request"))
 
@@ -301,7 +301,7 @@ class DNSHandler():
 
                 sock.close()
 
-        except Exception, e:
+        except Exception as e:
             print("[!] Could not proxy request: %s" % e)
         else:
             return reply
@@ -405,7 +405,7 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
     except IOError:
         print("[!] Failed to open log file for writing.")
 
-    except Exception, e:
+    except Exception as e:
         print("[!] Failed to start the server: %s" % e)
 
 if __name__ == "__main__":
