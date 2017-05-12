@@ -79,7 +79,7 @@ class DNSHandler():
                     if qtype == "AAAA":
                         ipv6 = IP(fake_record)
                         ipv6_bin = ipv6.strBin()
-                        ipv6_hex_tuple = [int(ipv6_bin[i:i+8],2) for i in xrange(0,len(ipv6_bin),8)]
+                        ipv6_hex_tuple = [int(ipv6_bin[i:i+8],2) for i in range(0,len(ipv6_bin),8)]
                         response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](ipv6_hex_tuple)))
 
                     elif qtype == "SOA":
@@ -155,7 +155,7 @@ class DNSHandler():
                             if qtype == "AAAA":
                                 ipv6 = IP(fake_record)
                                 ipv6_bin = ipv6.strBin()
-                                fake_record = [int(ipv6_bin[i:i+8],2) for i in xrange(0,len(ipv6_bin),8)]
+                                fake_record = [int(ipv6_bin[i:i+8],2) for i in range(0,len(ipv6_bin),8)]
 
                             elif qtype == "SOA":
                                 mname,rname,t1,t2,t3,t4,t5 = fake_record.split(" ")
