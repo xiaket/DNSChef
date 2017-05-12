@@ -1,10 +1,17 @@
 #!/usr/bin/env python
-__doc__ = \
-"""
+#coding=utf-8
+__doc__ = """
 DNSChef is a highly configurable DNS Proxy for Penetration Testers
-and Malware Analysts. Please visit http://thesprawl.org/projects/dnschef/
-for the latest version and documentation. Please forward all issues and
-concerns to iphelix [at] thesprawl.org.
+and Malware Analysts. It is capable of fine configuration of which
+DNS replies to modify or to simply proxy with real responses.
+In order to take advantage of the tool you must either manually configure
+or poison DNS server entry to point to DNSChef.
+The tool requires root privileges to run on privileged ports.
+
+Please visit http://thesprawl.org/projects/dnschef/ for the latest version
+and documentation.
+
+Please forward all issues and concerns to iphelix [at] thesprawl.org.
 """
 __version__ = "0.3"
 
@@ -419,7 +426,9 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
 
 def main():
     # Parse command line arguments
-    parser = OptionParser(usage = "dnschef.py [options]:\n" + HEADER, description="DNSChef is a highly configurable DNS Proxy for Penetration Testers and Malware Analysts. It is capable of fine configuration of which DNS replies to modify or to simply proxy with real responses. In order to take advantage of the tool you must either manually configure or poison DNS server entry to point to DNSChef. The tool requires root privileges to run on privileged ports." )
+    parser = OptionParser(
+        usage = "dnschef.py [options]:\n" + HEADER, description=__doc__
+    )
 
     fakegroup = OptionGroup(parser, "Fake DNS records:")
     fakegroup.add_option('--fakeip', metavar="192.0.2.1", action="store", help='IP address to use for matching DNS queries. If you use this parameter without specifying domain names, then all \'A\' queries will be spoofed. Consider using --file argument if you need to define more than one IP address.')
