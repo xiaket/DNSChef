@@ -15,8 +15,7 @@ Please forward all issues and concerns to iphelix [at] thesprawl.org.
 """
 __version__ = "0.3"
 
-from optparse import OptionParser, OptionGroup
-
+import argparse
 import base64
 import binascii
 import configparser
@@ -39,8 +38,62 @@ HEADER = """
      | (_| | | | \__ \ (__| | | |  __/ |
       \__,_|_| |_|___/\___|_| |_|\___|_|
                    iphelix@thesprawl.org
-                   version %s
-""" % __version__
+                   version %(version)s
+""" % {'version': __version__}
+
+FAKEIP_HELP = """IP address to use for matching DNS queries. If you use this
+parameter without specifying domain names, then all 'A' queries will be
+spoofed. Consider using --file argument if you need to define more than one
+IP address."""
+FAKEIPV6_HELP = """IPv6 address to use for matching DNS queries. If you use
+this parameter without specifying domain names, then all 'AAAA' queries will
+be spoofed. Consider using --file argument if you need to define more than one
+IPv6 address."""
+FAKEMAIL_HELP = """MX name to use for matching DNS queries. If you use this
+parameter without specifying domain names, then all 'MX' queries will be
+spoofed. Consider using --file argument if you need to define more than one
+MX record."""
+FAKEALIAS_HELP = """CNAME name to use for matching DNS queries. If you use
+this parameter without specifying domain names, then all 'CNAME' queries
+will be spoofed. Consider using --file argument if you need to define more
+than one CNAME record."""
+FAKENS_HELP = """NS name to use for matching DNS queries. If you use this
+parameter without specifying domain names, then all 'NS' queries will be
+spoofed. Consider using --file argument if you need to define more than one
+NS record."""
+FILE_HELP = """Specify a file containing a list of DOMAIN=IP pairs (one pair
+per line) used for DNS responses. For example: google.com=1.1.1.1 will force
+all queries to 'google.com' to be resolved to '1.1.1.1'. IPv6 addresses will
+be automatically detected. You can be even more specific by combining --file
+with other arguments. However, data obtained from the file will take
+precedence over others."""
+FAKEDOMAINS_HELP = """A comma separated list of domain names which will be
+resolved to FAKE values specified in the the above parameters. All other
+domain names will be resolved to their true values."""
+TRUEDOMAINS_HELP = """A comma separated list of domain names which will be
+resolved to their TRUE values. All other domain names will be resolved to
+fake values specified in the above parameters."""
+NAMESERVERS_HELP = """A comma separated list of alternative DNS servers to use
+with proxied requests. Nameservers can have either IP or IP#PORT format. A
+randomly selected server from the list will be used for proxy requests when
+provided with multiple servers. By default, the tool uses Google's public DNS
+server 8.8.8.8 when running in IPv4 mode and 2001:4860:4860::8888 when running
+in IPv6 mode."""
+FAKE_ARGUMENTS = {
+    'fakeip': {'metavar': '192.0.2.1', 'help': FAKEIP_HELP},
+    'fakeipv6': {'metavar': '2001:db8::1', 'help': FAKEIPV6_HELP},
+    'fakemail': {'metavar': 'make.fake.com', 'help': FAKEMAIL_HELP},
+    'fakealias': {'metavar': 'www.fake.com', 'help': FAKEALIAS_HELP},
+    'fakens': {'metavar': 'ns.fake.com', 'help': FAKENS_HELP},
+    'file': {'help': FILE_HELP},
+    'fakedomains': {
+        'metavar': "thesprawl.org,google.com", 'help': FAKEDOMAINS_HELP
+    },
+    'truedomains': {
+        'metavar': "thesprawl.org,google.com", 'help': TRUEDOMAINS_HELP
+    },
+}
+
 
 class DNSHandler():
     """
@@ -424,35 +477,52 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
     except Exception as e:
         print("[!] Failed to start the server: %s" % e)
 
-def main():
-    # Parse command line arguments
-    parser = OptionParser(
-        usage = "dnschef.py [options]:\n" + HEADER, description=__doc__
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    fake_group = parser.add_argument_group('Fake DNS records')
+    for argument in sorted(FAKE_ARGUMENTS.keys()):
+        _dict = FAKE_ARGUMENTS[argument]
+        fake_group.add_argument(
+            '--%s' % argument, help=_dict['help'],
+            metavar=_dict.get('metavar', None),
+        )
 
-    fakegroup = OptionGroup(parser, "Fake DNS records:")
-    fakegroup.add_option('--fakeip', metavar="192.0.2.1", action="store", help='IP address to use for matching DNS queries. If you use this parameter without specifying domain names, then all \'A\' queries will be spoofed. Consider using --file argument if you need to define more than one IP address.')
-    fakegroup.add_option('--fakeipv6', metavar="2001:db8::1", action="store", help='IPv6 address to use for matching DNS queries. If you use this parameter without specifying domain names, then all \'AAAA\' queries will be spoofed. Consider using --file argument if you need to define more than one IPv6 address.')
-    fakegroup.add_option('--fakemail', metavar="mail.fake.com", action="store", help='MX name to use for matching DNS queries. If you use this parameter without specifying domain names, then all \'MX\' queries will be spoofed. Consider using --file argument if you need to define more than one MX record.')
-    fakegroup.add_option('--fakealias', metavar="www.fake.com", action="store", help='CNAME name to use for matching DNS queries. If you use this parameter without specifying domain names, then all \'CNAME\' queries will be spoofed. Consider using --file argument if you need to define more than one CNAME record.')
-    fakegroup.add_option('--fakens', metavar="ns.fake.com", action="store", help='NS name to use for matching DNS queries. If you use this parameter without specifying domain names, then all \'NS\' queries will be spoofed. Consider using --file argument if you need to define more than one NS record.')
-    fakegroup.add_option('--file', action="store", help="Specify a file containing a list of DOMAIN=IP pairs (one pair per line) used for DNS responses. For example: google.com=1.1.1.1 will force all queries to 'google.com' to be resolved to '1.1.1.1'. IPv6 addresses will be automatically detected. You can be even more specific by combining --file with other arguments. However, data obtained from the file will take precedence over others.")
-    parser.add_option_group(fakegroup)
+    runtime_group = parser.add_argument_group('Optional runtime parameters')
+    runtime_group.add_argument(
+        "-i","--interface", metavar="127.0.0.1 or ::1", default="127.0.0.1",
+        help='Listen interface to use. By default, 127.0.0.1 is used for IPv4\
+        while ::1 is used for IPv6.'
+    )
+    runtime_group.add_argument(
+        "-6","--ipv6", action="store_true", default=False,
+        help="Run in IPv6 mode.",
+    )
+    runtime_group.add_argument(
+        '--logfile', help='Spcify a log file to record all activity.'
+    )
+    runtime_group.add_argument(
+        "-p","--port", metavar=53, default=53,
+        help='Port number to listen for DNS requests.',
+    )
+    runtime_group.add_argument(
+        "-q", "--quiet", action="store_false", dest="verbose",
+        default=True, help="Don't show headers.",
+    )
+    runtime_group.add_argument(
+        "-t","--tcp", action="store_true", default=False,
+        help="Use TCP DNS proxy instead of the default UDP.",
+    )
+    runtime_group.add_argument(
+        "--nameservers", default='8.8.8.8', help=NAMESERVERS_HELP,
+        metavar="8.8.8.8#53 or 4.2.2.1#53#tcp or 2001:4860:4860::8888",
+    )
+    return parser.parse_args()
 
-    parser.add_option('--fakedomains', metavar="thesprawl.org,google.com", action="store", help='A comma separated list of domain names which will be resolved to FAKE values specified in the the above parameters. All other domain names will be resolved to their true values.')
-    parser.add_option('--truedomains', metavar="thesprawl.org,google.com", action="store", help='A comma separated list of domain names which will be resolved to their TRUE values. All other domain names will be resolved to fake values specified in the above parameters.')
-
-    rungroup = OptionGroup(parser,"Optional runtime parameters.")
-    rungroup.add_option("--logfile", action="store", help="Specify a log file to record all activity")
-    rungroup.add_option("--nameservers", metavar="8.8.8.8#53 or 4.2.2.1#53#tcp or 2001:4860:4860::8888", default='8.8.8.8', action="store", help='A comma separated list of alternative DNS servers to use with proxied requests. Nameservers can have either IP or IP#PORT format. A randomly selected server from the list will be used for proxy requests when provided with multiple servers. By default, the tool uses Google\'s public DNS server 8.8.8.8 when running in IPv4 mode and 2001:4860:4860::8888 when running in IPv6 mode.')
-    rungroup.add_option("-i","--interface", metavar="127.0.0.1 or ::1", default="127.0.0.1", action="store", help='Define an interface to use for the DNS listener. By default, the tool uses 127.0.0.1 for IPv4 mode and ::1 for IPv6 mode.')
-    rungroup.add_option("-t","--tcp", action="store_true", default=False, help="Use TCP DNS proxy instead of the default UDP.")
-    rungroup.add_option("-6","--ipv6", action="store_true", default=False, help="Run in IPv6 mode.")
-    rungroup.add_option("-p","--port", action="store", metavar="53", default="53", help='Port number to listen for DNS requests.')
-    rungroup.add_option("-q", "--quiet", action="store_false", dest="verbose", default=True, help="Don't show headers.")
-    parser.add_option_group(rungroup)
-
-    (options,args) = parser.parse_args()
+def main():
+    options = parse_args()
 
     # Print program header
     if options.verbose:
