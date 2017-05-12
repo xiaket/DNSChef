@@ -9,10 +9,10 @@ concerns to iphelix [at] thesprawl.org.
 __version__ = "0.3"
 
 from optparse import OptionParser, OptionGroup
-from ConfigParser import ConfigParser
 
 import base64
 import binascii
+import configparser
 import operator
 import random
 import socket
@@ -486,7 +486,7 @@ def main():
 
     # External file definitions
     if options.file:
-        config = ConfigParser()
+        config = configparser.ConfigParser()
         config.read(options.file)
         for section in config.sections():
 
