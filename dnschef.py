@@ -19,6 +19,7 @@ import argparse
 import base64
 import binascii
 import configparser
+import logging
 import operator
 import random
 import socket
@@ -523,6 +524,13 @@ def parse_args():
 
 def main():
     options = parse_args()
+    logging.basicConfig(
+        datefmt='%Y-%m-%d %H:%M:%S', format='[%(asctime)s]%(message)s',
+        level=logging.DEBUG if options.verbose else logging.ERROR,
+        filename=options.logfile,
+    )
+    if not options.logfile:
+        logging.basicConfig(stream=sys.stdout)
 
     # Print program header
     if options.verbose:
@@ -530,15 +538,12 @@ def main():
 
     # Main storage of domain filters
     # NOTE: RDMAP is a dictionary map of qtype strings to handling classes
-    nametodns = dict()
-    for qtype in RDMAP.keys():
-        nametodns[qtype] = dict()
+    nametodns = {qtype:{} for qtype in RDMAP}
 
     # Incorrect or incomplete command line arguments
     if options.fakedomains and options.truedomains:
         print("[!] You can not specify both 'fakedomains' and 'truedomains' parameters.")
         sys.exit(0)
-
     elif not (options.fakeip or options.fakeipv6) and (options.fakedomains or options.truedomains):
         print("[!] You have forgotten to specify which IP to use for fake responses")
         sys.exit(0)
