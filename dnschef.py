@@ -27,10 +27,12 @@ from dnslib import DNSRecord, DNSHeader, RR
 from IPy import IP
 
 
-# DNSHandler Mixin. The class contains generic functions to parse DNS requests and
-# calculate an appropriate response based on user parameters.
 class DNSHandler():
-
+    """
+    DNSHandler Mixin. The class contains generic functions to parse
+    DNS requests and calculate an appropriate response based on
+    user parameters.
+    """
     def parse(self,data):
         response = ""
 
@@ -226,9 +228,10 @@ class DNSHandler():
         return response
 
 
-    # Find appropriate ip address to use for a queried name. The function can
     def findnametodns(self,qname,nametodns):
-
+        """
+        Find appropriate ip address to use for a queried name.
+        """
         # Make qname case insensitive
         qname = qname.lower()
 
@@ -258,8 +261,10 @@ class DNSHandler():
         else:
             return False
 
-    # Obtain a response from a real DNS server.
     def proxyrequest(self, request, host, port="53", protocol="udp"):
+        """
+        Obtain response from a real DNS server.
+        """
         reply = None
         try:
             if self.server.ipv6:
@@ -302,9 +307,10 @@ class DNSHandler():
         else:
             return reply
 
-# UDP DNS Handler for incoming requests
 class UDPHandler(DNSHandler, SocketServer.BaseRequestHandler):
-
+    """
+    UDP DNS Handler for incoming requests
+    """
     def handle(self):
         (data,socket) = self.request
         response = self.parse(data)
@@ -312,8 +318,10 @@ class UDPHandler(DNSHandler, SocketServer.BaseRequestHandler):
         if response:
             socket.sendto(response, self.client_address)
 
-# TCP DNS Handler for incoming requests
 class TCPHandler(DNSHandler, SocketServer.BaseRequestHandler):
+    """
+    TCP DNS Handler for incoming requests
+    """
 
     def handle(self):
         data = self.request.recv(1024)
@@ -356,8 +364,10 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
         SocketServer.TCPServer.__init__(self,server_address,RequestHandlerClass)
 
-# Initialize and start the DNS Server
 def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port="53", logfile=None):
+    """
+    Initialize and start the DNS Server
+    """
     try:
 
         if logfile:
