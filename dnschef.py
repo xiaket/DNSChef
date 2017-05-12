@@ -15,7 +15,6 @@ from ConfigParser import ConfigParser
 import base64
 import binascii
 import operator
-import os
 import random
 import socket
 import SocketServer
@@ -23,7 +22,7 @@ import sys
 import threading
 import time
 
-from dnslib import DNSRecord, DNSHeader, RR
+from dnslib import DNSRecord, DNSHeader, RR, DNSLabel, QR, QTYPE, RDMAP
 from IPy import IP
 
 
