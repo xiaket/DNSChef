@@ -505,7 +505,7 @@ def parse_args():
         '--logfile', help='Spcify a log file to record all activity.'
     )
     runtime_group.add_argument(
-        "-p","--port", metavar=53, default=53,
+        "-p","--port", metavar=53, default=53, type=int,
         help='Port number to listen for DNS requests.',
     )
     runtime_group.add_argument(
@@ -522,8 +522,36 @@ def parse_args():
     )
     return parser.parse_args()
 
+def parse_options(options):
+    """find incompatible options from command line, do some extra parsing."""
+    def quit(message):
+        logging.critical(message)
+        sys.stderr.write(message + "\n")
+        sys.exit(1)
+
+    if options.fakedomains and options.truedomains:
+        quit("You can not specify fakedomains and truedomains simultaneously")
+    elif not (options.fakeip or options.fakeipv6) and (options.fakedomains or options.truedomains):
+        quit("You forgot to specify which IP to use for fake responses")
+
+    # Notify user about alternative listening port
+    if options.port != 53:
+        logging.warn("Using alternative listen port: %s" % options.port)
+
+    # Adjust defaults for IPv6
+    if not options.ipv6:
+        return
+
+    logging.warn("Using IPv6.")
+    if options.interface == "127.0.0.1":
+        options.interface = "::1"
+
+    if options.nameservers == "8.8.8.8":
+        options.nameservers = "2001:4860:4860::8888"
+
 def main():
     options = parse_args()
+
     logging.basicConfig(
         datefmt='%Y-%m-%d %H:%M:%S', format='[%(asctime)s]%(message)s',
         level=logging.DEBUG if options.verbose else logging.ERROR,
@@ -531,35 +559,13 @@ def main():
     )
     if not options.logfile:
         logging.basicConfig(stream=sys.stdout)
+    globals()['logging'] = logging
 
-    # Print program header
-    if options.verbose:
-        print(HEADER)
+    parse_options(options)
 
     # Main storage of domain filters
     # NOTE: RDMAP is a dictionary map of qtype strings to handling classes
     nametodns = {qtype:{} for qtype in RDMAP}
-
-    # Incorrect or incomplete command line arguments
-    if options.fakedomains and options.truedomains:
-        print("[!] You can not specify both 'fakedomains' and 'truedomains' parameters.")
-        sys.exit(0)
-    elif not (options.fakeip or options.fakeipv6) and (options.fakedomains or options.truedomains):
-        print("[!] You have forgotten to specify which IP to use for fake responses")
-        sys.exit(0)
-
-    # Notify user about alternative listening port
-    if options.port != "53":
-        print("[*] Listening on an alternative port %s" % options.port)
-
-    # Adjust defaults for IPv6
-    if options.ipv6:
-        print("[*] Using IPv6 mode.")
-        if options.interface == "127.0.0.1":
-            options.interface = "::1"
-
-        if options.nameservers == "8.8.8.8":
-            options.nameservers = "2001:4860:4860::8888"
 
     print("[*] DNSChef started on interface: %s " % options.interface)
 
