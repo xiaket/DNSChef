@@ -410,14 +410,13 @@ class TCPHandler(DNSHandler, socketserver.BaseRequestHandler):
 class ThreadedUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
 
     # Override socketserver.UDPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, Handler, nametodns, nameservers, ipv6):
         self.nametodns  = nametodns
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
-        self.log = log
 
-        socketserver.UDPServer.__init__(self,server_address,RequestHandlerClass)
+        socketserver.UDPServer.__init__(self, server_address, Handler)
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
@@ -425,14 +424,13 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
 
     # Override socketserver.TCPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, Handler, nametodns, nameservers, ipv6):
         self.nametodns   = nametodns
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
-        self.log = log
 
-        socketserver.TCPServer.__init__(self,server_address,RequestHandlerClass)
+        socketserver.TCPServer.__init__(self, server_address, Handler)
 
 
 def start_cooking(nametodns, interface, nameservers, tcp=False, ipv6=False, port=53):
