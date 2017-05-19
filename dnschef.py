@@ -96,6 +96,7 @@ FAKE_ARGUMENTS = {
     },
 }
 WILD_CARD = '*.*.*.*.*.*.*.*.*.*'
+REGISTRY = {qtype:{} for qtype in RDMAP}
 
 
 class DNSHandler():
@@ -132,9 +133,9 @@ class DNSHandler():
                 # Find all matching fake DNS records for the query name or get False
                 fake_records = dict()
 
-                for record in self.server.nametodns:
+                for record in REGISTRY:
 
-                    fake_records[record] = self.findnametodns(qname,self.server.nametodns[record])
+                    fake_records[record] = self.findregistry(qname, REGISTRY[record])
 
                 # Check if there is a fake record for the current request qtype
                 if qtype in fake_records and fake_records[qtype]:
@@ -298,7 +299,7 @@ class DNSHandler():
 
         return response
 
-    def findnametodns(self, qname, nametodns):
+    def findregistry(self, qname, REGISTRY):
         """
         Find appropriate ip address to use for a queried name.
         """
@@ -309,9 +310,9 @@ class DNSHandler():
         qnamelist = qname.split('.')
         qnamelist.reverse()
 
-        # HACK: It is important to search the nametodns dictionary before iterating it so that
+        # HACK: It is important to search the REGISTRY dictionary before iterating it so that
         # global matching ['*.*.*.*.*.*.*.*.*.*'] will match last. Use sorting for that.
-        for domain,host in sorted(nametodns.iteritems(), key=operator.itemgetter(1)):
+        for domain,host in sorted(REGISTRY.iteritems(), key=operator.itemgetter(1)):
 
             # NOTE: It is assumed that domain name was already lowercased
             #       when it was loaded through --file, --fakedomains or --truedomains
@@ -410,8 +411,7 @@ class TCPHandler(DNSHandler, socketserver.BaseRequestHandler):
 class ThreadedUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
 
     # Override socketserver.UDPServer to add extra parameters
-    def __init__(self, server_address, Handler, nametodns, nameservers, ipv6):
-        self.nametodns  = nametodns
+    def __init__(self, server_address, Handler, nameservers, ipv6):
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
@@ -424,8 +424,7 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
 
     # Override socketserver.TCPServer to add extra parameters
-    def __init__(self, server_address, Handler, nametodns, nameservers, ipv6):
-        self.nametodns   = nametodns
+    def __init__(self, server_address, Handler, nameservers, ipv6):
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
@@ -433,16 +432,16 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         socketserver.TCPServer.__init__(self, server_address, Handler)
 
 
-def start_cooking(nametodns, interface, nameservers, tcp=False, ipv6=False, port=53):
+def start_cooking(interface, nameservers, tcp=False, ipv6=False, port=53):
     """
     Initialize and start the DNS Server
     """
     try:
         if tcp:
             print("[*] DNSChef is running in TCP mode")
-            server = ThreadedTCPServer((interface, port), TCPHandler, nametodns, nameservers, ipv6)
+            server = ThreadedTCPServer((interface, port), TCPHandler, nameservers, ipv6)
         else:
-            server = ThreadedUDPServer((interface, port), UDPHandler, nametodns, nameservers, ipv6)
+            server = ThreadedUDPServer((interface, port), UDPHandler, nameservers, ipv6)
 
         # Start a thread with the server -- that thread will then start
         # more threads for each request
@@ -548,25 +547,25 @@ def parse_options(options):
     if options.truedomains:
         options.truedomains = options.truedomains.split(",")
 
-def load_ini_file(file_path, nametodns):
+def load_ini_file(file_path):
     config = configparser.ConfigParser()
     config.read(file_path)
 
     for section in config.sections():
-        if section not in nametodns:
+        if section not in REGISTRY:
             logging.error(
                 "DNS Record '%s' is not supported. Ignoring section.", section
             )
             continue
         for domain, record in config.items(section):
             domain = domain.lower()
-            nametodns[section][domain] = record
+            REGISTRY[section][domain] = record
             logging.debug(
                 "Cooking %s replies for domain %s with '%s'",
                 section, domain, record,
             )
 
-def load_fakes_from_options(options, nametodns):
+def load_fakes_from_options(options):
     names = {
         'fakeip': 'A', 'fakeipv6': 'AAAA', 'fakemail': 'MX',
         'fakealias': 'CNAME', 'fakens': 'NS',
@@ -581,7 +580,7 @@ def load_fakes_from_options(options, nametodns):
             domain = domain.strip().lower()
             for name in names:
                 if getattr(options, name, False):
-                    nametodns[names[name]][domain] = getattr(options, name)
+                    REGISTRY[names[name]][domain] = getattr(options, name)
                     logging.debug(
                         "Cooking %s replies to point to %s matching: %s",
                         names[name], getattr(options, name), domain,
@@ -591,8 +590,8 @@ def load_fakes_from_options(options, nametodns):
             domain = domain.strip().lower()
             for name in names:
                 if getattr(options, name, False):
-                    nametodns[names[name]][domain] = False
-                    nametodns[names[name]][WILD_CARD] = getattr(options, name)
+                    REGISTRY[names[name]][domain] = False
+                    REGISTRY[names[name]][WILD_CARD] = getattr(options, name)
                     logging.debug(
                         "Cooking %s replies to point to %s not matching: %s",
                         names[name], getattr(options, name), domain,
@@ -600,7 +599,7 @@ def load_fakes_from_options(options, nametodns):
     else:
         for name in names:
             if getattr(options, name, False):
-                nametodns[names[name]][WILD_CARD] = getattr(options, name)
+                REGISTRY[names[name]][WILD_CARD] = getattr(options, name)
                 logging.debug(
                     "Cooking all %s replies to point to %s",
                     names[name], getattr(options, name),
@@ -620,7 +619,6 @@ def main():
 
     # Main storage of domain filters
     # NOTE: RDMAP is a dictionary map of qtype strings to handling classes
-    nametodns = {qtype:{} for qtype in RDMAP}
     parse_options(options)
 
     if options.file:
@@ -630,14 +628,14 @@ def main():
             )
             sys.exit(1)
         logging.debug("Loading configuration file: %s", options.file)
-        load_ini_file(options.file, nametodns)
+        load_ini_file(options.file)
 
-    load_fakes_from_options(options, nametodns)
+    load_fakes_from_options(options)
 
     # Launch DNSChef
     names = ["interface", "nameservers", "tcp", "ipv6", "port"]
     kwargs = {name: getattr(options, name) for name in names}
-    start_cooking(nametodns, **kwargs)
+    start_cooking(**kwargs)
 
 if __name__ == "__main__":
     main()
