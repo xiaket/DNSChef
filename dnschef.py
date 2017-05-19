@@ -334,7 +334,7 @@ class DNSHandler():
         else:
             return False
 
-    def proxyrequest(self, request, host, port="53", protocol="udp"):
+    def proxyrequest(self, request, host, port=53, protocol="udp"):
         """
         Obtain response from a real DNS server.
         """
@@ -358,12 +358,12 @@ class DNSHandler():
             # Send the proxy request to a randomly chosen DNS server
 
             if protocol == "udp":
-                sock.sendto(request, (host, int(port)))
+                sock.sendto(request, (host, port))
                 reply = sock.recv(1024)
                 sock.close()
 
             elif protocol == "tcp":
-                sock.connect((host, int(port)))
+                sock.connect((host, port))
 
                 # Add length for the TCP request
                 length = binascii.unhexlify("%04x" % len(request))
