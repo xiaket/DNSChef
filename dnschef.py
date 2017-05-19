@@ -435,23 +435,16 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         socketserver.TCPServer.__init__(self,server_address,RequestHandlerClass)
 
 
-def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port="53", logfile=None):
+def start_cooking(nametodns, interface, nameservers, tcp=False, ipv6=False, port=53):
     """
     Initialize and start the DNS Server
     """
     try:
-
-        if logfile:
-            log = open(logfile,'a',0)
-            log.write("[%s] DNSChef is active.\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z")) )
-        else:
-            log = None
-
         if tcp:
             print("[*] DNSChef is running in TCP mode")
-            server = ThreadedTCPServer((interface, int(port)), TCPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedTCPServer((interface, port), TCPHandler, nametodns, nameservers, ipv6)
         else:
-            server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedUDPServer((interface, port), UDPHandler, nametodns, nameservers, ipv6)
 
         # Start a thread with the server -- that thread will then start
         # more threads for each request
@@ -462,23 +455,16 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
         server_thread.start()
 
         # Loop in the main thread
-        while True: time.sleep(100)
-
+        while True:
+            time.sleep(1)
     except (KeyboardInterrupt, SystemExit):
-
-        if log:
-            log.write("[%s] DNSChef is shutting down.\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z")) )
-            log.close()
-
+        logging.debug("DNSChef is shutting down.")
         server.shutdown()
-        print("[*] DNSChef is shutting down.")
-        sys.exit()
-
-    except IOError:
-        print("[!] Failed to open log file for writing.")
-
-    except Exception as e:
-        print("[!] Failed to start the server: %s" % e)
+        sys.exit(0)
+    except Exception as error:
+        logging.critical("DNSChef failed: %s", error)
+        server.shutdown()
+        sys.exit(1)
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -651,7 +637,9 @@ def main():
     load_fakes_from_options(options, nametodns)
 
     # Launch DNSChef
-    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=options.nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
+    names = ["interface", "nameservers", "tcp", "ipv6", "port"]
+    kwargs = {name: getattr(options, name) for name in names}
+    start_cooking(nametodns, **kwargs)
 
 if __name__ == "__main__":
     main()
