@@ -24,10 +24,12 @@ import operator
 import os
 import random
 import socket
-import socketserver
 import sys
 import threading
 import time
+
+from socketserver import BaseRequestHandler, TCPServer, UDPServer, \
+    ThreadingMixIn
 
 from dnslib import DNSRecord, DNSHeader, RR, DNSLabel, QR, QTYPE, RDMAP
 from IPy import IP
@@ -378,7 +380,7 @@ class DNSHandler():
         else:
             return reply
 
-class UDPHandler(DNSHandler, socketserver.BaseRequestHandler):
+class UDPHandler(DNSHandler, BaseRequestHandler):
     """
     UDP DNS Handler for incoming requests
     """
@@ -389,7 +391,7 @@ class UDPHandler(DNSHandler, socketserver.BaseRequestHandler):
         if response:
             socket.sendto(response, self.client_address)
 
-class TCPHandler(DNSHandler, socketserver.BaseRequestHandler):
+class TCPHandler(DNSHandler, BaseRequestHandler):
     """
     TCP DNS Handler for incoming requests
     """
@@ -408,28 +410,24 @@ class TCPHandler(DNSHandler, socketserver.BaseRequestHandler):
             length = binascii.unhexlify("%04x" % len(response))
             self.request.sendall(length+response)
 
-class ThreadedUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
 
-    # Override socketserver.UDPServer to add extra parameters
-    def __init__(self, server_address, Handler, nameservers, ipv6):
+class ThreadedUDPServer(ThreadingMixIn, UDPServer):
+    def __init__(self, server_address, handler_class, nameservers, ipv6):
+        self.ipv6 = ipv6
         self.nameservers = nameservers
-        self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
 
-        socketserver.UDPServer.__init__(self, server_address, Handler)
+        super(ThreadedUDPServer, self).__init__(server_address, handler_class)
 
-class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
-    # Override default value
+class ThreadedTCPServer(ThreadingMixIn, TCPServer):
     allow_reuse_address = True
-
-    # Override socketserver.TCPServer to add extra parameters
-    def __init__(self, server_address, Handler, nameservers, ipv6):
+    def __init__(self, server_address, handler_class, nameservers, ipv6):
+        self.ipv6 = ipv6
         self.nameservers = nameservers
-        self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
 
-        socketserver.TCPServer.__init__(self, server_address, Handler)
+        super(ThreadedTCPServer, self).__init__(server_address, handler_class)
 
 
 def start_cooking(interface, nameservers, tcp=False, ipv6=False, port=53):
