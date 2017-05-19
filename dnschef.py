@@ -21,6 +21,7 @@ import binascii
 import configparser
 import logging
 import operator
+import os
 import random
 import socket
 import socketserver
@@ -549,6 +550,126 @@ def parse_options(options):
     if options.nameservers == "8.8.8.8":
         options.nameservers = "2001:4860:4860::8888"
 
+    logging.debug("Using interface %s to start DNSChef", options.interface)
+
+    # Use alternative DNS servers
+    if options.nameservers:
+        options.nameservers = options.nameservers.split(',')
+        logging.debug("Using nameservers: %s", ", ".join(options.nameservers))
+
+def load_ini_file(file_path, nametodns):
+    config = configparser.ConfigParser()
+    config.read(file_path)
+
+    for section in config.sections():
+        if section not in nametodns:
+            logging.error(
+                "DNS Record '%s' is not supported. Ignoring section.", section
+            )
+            continue
+        for domain, record in config.items(section):
+            domain = domain.lower()
+            nametodns[section][domain] = record
+            logging.debug(
+                "Cooking %s replies for domain %s with '%s'",
+                section, domain, record,
+            )
+
+def load_fakes_from_options(options, nametodns):
+    names = ['fakeip', 'fakeipv6', 'fakemail', 'fakealias', 'fakens']
+    if not any(getattr(options, name, False) for name in names):
+        return
+
+    fakeip     = options.fakeip
+    fakeipv6   = options.fakeipv6
+    fakemail   = options.fakemail
+    fakealias  = options.fakealias
+    fakens     = options.fakens
+
+    if options.fakedomains:
+        for domain in options.fakedomains.split(','):
+
+            # Make domain case insensitive
+            domain = domain.lower()
+            domain = domain.strip()
+
+            if fakeip:
+                nametodns["A"][domain] = fakeip
+                print("[*] Cooking A replies to point to %s matching: %s" % (options.fakeip, domain))
+
+            if fakeipv6:
+                nametodns["AAAA"][domain] = fakeipv6
+                print("[*] Cooking AAAA replies to point to %s matching: %s" % (options.fakeipv6, domain))
+
+            if fakemail:
+                nametodns["MX"][domain] = fakemail
+                print("[*] Cooking MX replies to point to %s matching: %s" % (options.fakemail, domain))
+
+            if fakealias:
+                nametodns["CNAME"][domain] = fakealias
+                print("[*] Cooking CNAME replies to point to %s matching: %s" % (options.fakealias, domain))
+
+            if fakens:
+                nametodns["NS"][domain] = fakens
+                print("[*] Cooking NS replies to point to %s matching: %s" % (options.fakens, domain))
+
+    elif options.truedomains:
+        for domain in options.truedomains.split(','):
+
+            # Make domain case insensitive
+            domain = domain.lower()
+            domain = domain.strip()
+
+            if fakeip:
+                nametodns["A"][domain] = False
+                print("[*] Cooking A replies to point to %s not matching: %s" % (options.fakeip, domain))
+                nametodns["A"]['*.*.*.*.*.*.*.*.*.*'] = fakeip
+
+            if fakeipv6:
+                nametodns["AAAA"][domain] = False
+                print("[*] Cooking AAAA replies to point to %s not matching: %s" % (options.fakeipv6, domain))
+                nametodns["AAAA"]['*.*.*.*.*.*.*.*.*.*'] = fakeipv6
+
+            if fakemail:
+                nametodns["MX"][domain] = False
+                print("[*] Cooking MX replies to point to %s not matching: %s" % (options.fakemail, domain))
+                nametodns["MX"]['*.*.*.*.*.*.*.*.*.*'] = fakemail
+
+            if fakealias:
+                nametodns["CNAME"][domain] = False
+                print("[*] Cooking CNAME replies to point to %s not matching: %s" % (options.fakealias, domain))
+                nametodns["CNAME"]['*.*.*.*.*.*.*.*.*.*'] = fakealias
+
+            if fakens:
+                nametodns["NS"][domain] = False
+                print("[*] Cooking NS replies to point to %s not matching: %s" % (options.fakens, domain))
+                nametodns["NS"]['*.*.*.*.*.*.*.*.*.*'] = fakealias
+
+    else:
+
+        # NOTE: '*.*.*.*.*.*.*.*.*.*' domain is a special ANY domain
+        #       which is compatible with the wildflag algorithm above.
+
+        if fakeip:
+            nametodns["A"]['*.*.*.*.*.*.*.*.*.*'] = fakeip
+            print("[*] Cooking all A replies to point to %s" % fakeip)
+
+        if fakeipv6:
+            nametodns["AAAA"]['*.*.*.*.*.*.*.*.*.*'] = fakeipv6
+            print("[*] Cooking all AAAA replies to point to %s" % fakeipv6)
+
+        if fakemail:
+            nametodns["MX"]['*.*.*.*.*.*.*.*.*.*'] = fakemail
+            print("[*] Cooking all MX replies to point to %s" % fakemail)
+
+        if fakealias:
+            nametodns["CNAME"]['*.*.*.*.*.*.*.*.*.*'] = fakealias
+            print("[*] Cooking all CNAME replies to point to %s" % fakealias)
+
+        if fakens:
+            nametodns["NS"]['*.*.*.*.*.*.*.*.*.*'] = fakens
+            print("[*] Cooking all NS replies to point to %s" % fakens)
+
 def main():
     options = parse_args()
 
@@ -561,135 +682,28 @@ def main():
         logging.basicConfig(stream=sys.stdout)
     globals()['logging'] = logging
 
-    parse_options(options)
-
     # Main storage of domain filters
     # NOTE: RDMAP is a dictionary map of qtype strings to handling classes
     nametodns = {qtype:{} for qtype in RDMAP}
+    parse_options(options)
 
-    print("[*] DNSChef started on interface: %s " % options.interface)
-
-    # Use alternative DNS servers
-    if options.nameservers:
-        nameservers = options.nameservers.split(',')
-        print("[*] Using the following nameservers: %s" % ", ".join(nameservers))
-
-    # External file definitions
     if options.file:
-        config = configparser.ConfigParser()
-        config.read(options.file)
-        for section in config.sections():
+        if not os.access(options.file, os.R_OK):
+            logging.critical(
+                "Cannot access specified configuration: %s", options.file,
+            )
+            sys.exit(1)
+        logging.debug("Loading configuration file: %s", options.file)
+        load_ini_file(options.file, nametodns)
 
-            if section in nametodns:
-                for domain,record in config.items(section):
-
-                    # Make domain case insensitive
-                    domain = domain.lower()
-
-                    nametodns[section][domain] = record
-                    print("[+] Cooking %s replies for domain %s with '%s'" % (section,domain,record))
-            else:
-                print("[!] DNS Record '%s' is not supported. Ignoring section contents." % section)
-
-    # DNS Record and Domain Name definitions
-    # NOTE: '*.*.*.*.*.*.*.*.*.*' domain is used to match all possible queries.
-    if options.fakeip or options.fakeipv6 or options.fakemail or options.fakealias or options.fakens:
-        fakeip     = options.fakeip
-        fakeipv6   = options.fakeipv6
-        fakemail   = options.fakemail
-        fakealias  = options.fakealias
-        fakens     = options.fakens
-
-        if options.fakedomains:
-            for domain in options.fakedomains.split(','):
-
-                # Make domain case insensitive
-                domain = domain.lower()
-                domain = domain.strip()
-
-                if fakeip:
-                    nametodns["A"][domain] = fakeip
-                    print("[*] Cooking A replies to point to %s matching: %s" % (options.fakeip, domain))
-
-                if fakeipv6:
-                    nametodns["AAAA"][domain] = fakeipv6
-                    print("[*] Cooking AAAA replies to point to %s matching: %s" % (options.fakeipv6, domain))
-
-                if fakemail:
-                    nametodns["MX"][domain] = fakemail
-                    print("[*] Cooking MX replies to point to %s matching: %s" % (options.fakemail, domain))
-
-                if fakealias:
-                    nametodns["CNAME"][domain] = fakealias
-                    print("[*] Cooking CNAME replies to point to %s matching: %s" % (options.fakealias, domain))
-
-                if fakens:
-                    nametodns["NS"][domain] = fakens
-                    print("[*] Cooking NS replies to point to %s matching: %s" % (options.fakens, domain))
-
-        elif options.truedomains:
-            for domain in options.truedomains.split(','):
-
-                # Make domain case insensitive
-                domain = domain.lower()
-                domain = domain.strip()
-
-                if fakeip:
-                    nametodns["A"][domain] = False
-                    print("[*] Cooking A replies to point to %s not matching: %s" % (options.fakeip, domain))
-                    nametodns["A"]['*.*.*.*.*.*.*.*.*.*'] = fakeip
-
-                if fakeipv6:
-                    nametodns["AAAA"][domain] = False
-                    print("[*] Cooking AAAA replies to point to %s not matching: %s" % (options.fakeipv6, domain))
-                    nametodns["AAAA"]['*.*.*.*.*.*.*.*.*.*'] = fakeipv6
-
-                if fakemail:
-                    nametodns["MX"][domain] = False
-                    print("[*] Cooking MX replies to point to %s not matching: %s" % (options.fakemail, domain))
-                    nametodns["MX"]['*.*.*.*.*.*.*.*.*.*'] = fakemail
-
-                if fakealias:
-                    nametodns["CNAME"][domain] = False
-                    print("[*] Cooking CNAME replies to point to %s not matching: %s" % (options.fakealias, domain))
-                    nametodns["CNAME"]['*.*.*.*.*.*.*.*.*.*'] = fakealias
-
-                if fakens:
-                    nametodns["NS"][domain] = False
-                    print("[*] Cooking NS replies to point to %s not matching: %s" % (options.fakens, domain))
-                    nametodns["NS"]['*.*.*.*.*.*.*.*.*.*'] = fakealias
-
-        else:
-
-            # NOTE: '*.*.*.*.*.*.*.*.*.*' domain is a special ANY domain
-            #       which is compatible with the wildflag algorithm above.
-
-            if fakeip:
-                nametodns["A"]['*.*.*.*.*.*.*.*.*.*'] = fakeip
-                print("[*] Cooking all A replies to point to %s" % fakeip)
-
-            if fakeipv6:
-                nametodns["AAAA"]['*.*.*.*.*.*.*.*.*.*'] = fakeipv6
-                print("[*] Cooking all AAAA replies to point to %s" % fakeipv6)
-
-            if fakemail:
-                nametodns["MX"]['*.*.*.*.*.*.*.*.*.*'] = fakemail
-                print("[*] Cooking all MX replies to point to %s" % fakemail)
-
-            if fakealias:
-                nametodns["CNAME"]['*.*.*.*.*.*.*.*.*.*'] = fakealias
-                print("[*] Cooking all CNAME replies to point to %s" % fakealias)
-
-            if fakens:
-                nametodns["NS"]['*.*.*.*.*.*.*.*.*.*'] = fakens
-                print("[*] Cooking all NS replies to point to %s" % fakens)
+    load_fakes_from_options(options, nametodns)
 
     # Proxy all DNS requests
     if not options.fakeip and not options.fakeipv6 and not options.fakemail and not options.fakealias and not options.fakens and not options.file:
         print("[*] No parameters were specified. Running in full proxy mode")
 
     # Launch DNSChef
-    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
+    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=options.nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
 
 
 if __name__ == "__main__":
