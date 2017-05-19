@@ -380,6 +380,7 @@ class DNSHandler():
         else:
             return reply
 
+
 class UDPHandler(DNSHandler, BaseRequestHandler):
     """
     UDP DNS Handler for incoming requests
@@ -390,6 +391,7 @@ class UDPHandler(DNSHandler, BaseRequestHandler):
 
         if response:
             socket.sendto(response, self.client_address)
+
 
 class TCPHandler(DNSHandler, BaseRequestHandler):
     """
@@ -429,37 +431,6 @@ class ThreadedTCPServer(ThreadingMixIn, TCPServer):
 
         super(ThreadedTCPServer, self).__init__(server_address, handler_class)
 
-
-def start_cooking(interface, nameservers, tcp=False, ipv6=False, port=53):
-    """
-    Initialize and start the DNS Server
-    """
-    try:
-        if tcp:
-            print("[*] DNSChef is running in TCP mode")
-            server = ThreadedTCPServer((interface, port), TCPHandler, nameservers, ipv6)
-        else:
-            server = ThreadedUDPServer((interface, port), UDPHandler, nameservers, ipv6)
-
-        # Start a thread with the server -- that thread will then start
-        # more threads for each request
-        server_thread = threading.Thread(target=server.serve_forever)
-
-        # Exit the server thread when the main thread terminates
-        server_thread.daemon = True
-        server_thread.start()
-
-        # Loop in the main thread
-        while True:
-            time.sleep(1)
-    except (KeyboardInterrupt, SystemExit):
-        logging.debug("DNSChef is shutting down.")
-        server.shutdown()
-        sys.exit(0)
-    except Exception as error:
-        logging.critical("DNSChef failed: %s", error)
-        server.shutdown()
-        sys.exit(1)
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -602,6 +573,37 @@ def load_fakes_from_options(options):
                     "Cooking all %s replies to point to %s",
                     names[name], getattr(options, name),
                 )
+
+def start_cooking(interface, nameservers, tcp=False, ipv6=False, port=53):
+    """
+    Initialize and start the DNS Server
+    """
+    try:
+        if tcp:
+            logging.debug("DNSChef is running in TCP mode")
+            server = ThreadedTCPServer((interface, port), TCPHandler, nameservers, ipv6)
+        else:
+            server = ThreadedUDPServer((interface, port), UDPHandler, nameservers, ipv6)
+
+        # Start a thread with the server -- that thread will then start
+        # more threads for each request
+        server_thread = threading.Thread(target=server.serve_forever)
+
+        # Exit the server thread when the main thread terminates
+        server_thread.daemon = True
+        server_thread.start()
+
+        # Loop in the main thread
+        while True:
+            time.sleep(1)
+    except (KeyboardInterrupt, SystemExit):
+        logging.debug("DNSChef is shutting down.")
+        server.shutdown()
+        sys.exit(0)
+    except Exception as error:
+        logging.critical("DNSChef failed: %s", error)
+        server.shutdown()
+        sys.exit(1)
 
 def main():
     options = parse_args()
