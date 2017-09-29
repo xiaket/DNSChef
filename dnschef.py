@@ -490,7 +490,7 @@ def parse_options(options):
 
     # Notify user about alternative listening port
     if options.port != 53:
-        logging.warn("Using alternative listen port: %s" % options.port)
+        logging.warn("Using alternative listen port: %s", options.port)
 
     # Adjust defaults for IPv6
     if not options.ipv6:
