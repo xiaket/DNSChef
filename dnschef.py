@@ -148,34 +148,36 @@ class DNSHandler():
                     response = DNSRecord(DNSHeader(id=d.header.id, bitmap=d.header.bitmap, qr=1, aa=1, ra=1), q=d.q)
 
                     print("[%s] %s: cooking the response of type '%s' for %s to %s" % (time.strftime("%H:%M:%S"), self.client_address[0], qtype, qname, fake_record))
-                    if self.server.log: self.server.log.write( "[%s] %s: cooking the response of type '%s' for %s to %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], qtype, qname, fake_record) )
+                    if self.server.log:
+                        self.server.log.write("[%s] %s: cooking the response of type '%s' for %s to %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], qtype, qname, fake_record))
 
                     # IPv6 needs additional work before inclusion:
                     if qtype == "AAAA":
                         ipv6 = IP(fake_record)
                         ipv6_bin = ipv6.strBin()
-                        ipv6_hex_tuple = [int(ipv6_bin[i:i+8],2) for i in range(0,len(ipv6_bin),8)]
-                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](ipv6_hex_tuple)))
+                        ipv6_hex_tuple = [int(ipv6_bin[i:i+8], 2) for i in range(0, len(ipv6_bin), 8)]
+                        response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](ipv6_hex_tuple)))
 
                     elif qtype == "SOA":
-                        mname,rname,t1,t2,t3,t4,t5 = fake_record.split(" ")
-                        times = tuple([int(t) for t in [t1,t2,t3,t4,t5]])
+                        mname, rname, t1, t2, t3, t4, t5 = fake_record.split(" ")
+                        times = tuple([int(t) for t in [t1, t2, t3, t4, t5]])
 
                         # dnslib doesn't like trailing dots
                         if mname[-1] == ".": mname = mname[:-1]
                         if rname[-1] == ".": rname = rname[:-1]
 
-                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](mname,rname,times)))
+                        response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](mname, rname, times)))
 
                     elif qtype == "NAPTR":
-                        order,preference,flags,service,regexp,replacement = fake_record.split(" ")
+                        order, preference, flags, service, regexp, replacement = fake_record.split(" ")
                         order = int(order)
                         preference = int(preference)
 
                         # dnslib doesn't like trailing dots
-                        if replacement[-1] == ".": replacement = replacement[:-1]
+                        if replacement[-1] == ".":
+                            replacement = replacement[:-1]
 
-                        response.add_answer( RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](order,preference,flags,service,regexp,DNSLabel(replacement))) )
+                        response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](order, preference, flags, service, regexp, DNSLabel(replacement))))
 
                     elif qtype == "SRV":
                         priority, weight, port, target = fake_record.split(" ")
@@ -184,7 +186,7 @@ class DNSHandler():
                         port = int(port)
                         if target[-1] == ".": target = target[:-1]
 
-                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](priority, weight, port, target) ))
+                        response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](priority, weight, port, target)))
 
                     elif qtype == "DNSKEY":
                         flags, protocol, algorithm, key = fake_record.split(" ")
@@ -193,36 +195,38 @@ class DNSHandler():
                         algorithm = int(algorithm)
                         key = base64.b64decode(("".join(key)).encode('ascii'))
 
-                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](flags, protocol, algorithm, key) ))
+                        response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](flags, protocol, algorithm, key)))
 
                     elif qtype == "RRSIG":
                         covered, algorithm, labels, orig_ttl, sig_exp, sig_inc, key_tag, name, sig = fake_record.split(" ")
-                        covered = getattr(QTYPE,covered) # NOTE: Covered QTYPE
+                        covered = getattr(QTYPE, covered) # NOTE: Covered QTYPE
                         algorithm = int(algorithm)
                         labels = int(labels)
                         orig_ttl = int(orig_ttl)
-                        sig_exp = int(time.mktime(time.strptime(sig_exp +'GMT',"%Y%m%d%H%M%S%Z")))
-                        sig_inc = int(time.mktime(time.strptime(sig_inc +'GMT',"%Y%m%d%H%M%S%Z")))
+                        sig_exp = int(time.mktime(time.strptime(sig_exp + 'GMT', "%Y%m%d%H%M%S%Z")))
+                        sig_inc = int(time.mktime(time.strptime(sig_inc + 'GMT', "%Y%m%d%H%M%S%Z")))
                         key_tag = int(key_tag)
-                        if name[-1] == '.': name = name[:-1]
+                        if name[-1] == '.':
+                            name = name[:-1]
                         sig = base64.b64decode(("".join(sig)).encode('ascii'))
 
-                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](covered, algorithm, labels,orig_ttl, sig_exp, sig_inc, key_tag, name, sig) ))
+                        response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](covered, algorithm, labels, orig_ttl, sig_exp, sig_inc, key_tag, name, sig)))
 
                     else:
                         # dnslib doesn't like trailing dots
-                        if fake_record[-1] == ".": fake_record = fake_record[:-1]
-                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](fake_record)))
+                        if fake_record[-1] == ".":
+                            fake_record = fake_record[:-1]
+                        response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](fake_record)))
 
                     response = response.pack()
 
                 elif qtype == "*" and not None in fake_records.values():
                     print("[%s] %s: cooking the response of type '%s' for %s with %s" % (time.strftime("%H:%M:%S"), self.client_address[0], "ANY", qname, "all known fake records."))
-                    if self.server.log: self.server.log.write( "[%s] %s: cooking the response of type '%s' for %s with %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], "ANY", qname, "all known fake records.") )
+                    if self.server.log: self.server.log.write("[%s] %s: cooking the response of type '%s' for %s with %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], "ANY", qname, "all known fake records."))
 
-                    response = DNSRecord(DNSHeader(id=d.header.id, bitmap=d.header.bitmap,qr=1, aa=1, ra=1), q=d.q)
+                    response = DNSRecord(DNSHeader(id=d.header.id, bitmap=d.header.bitmap, qr=1, aa=1, ra=1), q=d.q)
 
-                    for qtype,fake_record in fake_records.items():
+                    for qtype, fake_record in fake_records.items():
                         if fake_record:
 
                             # NOTE: RDMAP is a dictionary map of qtype strings to handling classses
@@ -230,36 +234,40 @@ class DNSHandler():
                             if qtype == "AAAA":
                                 ipv6 = IP(fake_record)
                                 ipv6_bin = ipv6.strBin()
-                                fake_record = [int(ipv6_bin[i:i+8],2) for i in range(0,len(ipv6_bin),8)]
+                                fake_record = [int(ipv6_bin[i:i+8], 2) for i in range(0, len(ipv6_bin), 8)]
 
                             elif qtype == "SOA":
-                                mname,rname,t1,t2,t3,t4,t5 = fake_record.split(" ")
-                                times = tuple([int(t) for t in [t1,t2,t3,t4,t5]])
+                                mname, rname, t1, t2, t3, t4, t5 = fake_record.split(" ")
+                                times = tuple([int(t) for t in [t1, t2, t3, t4, t5]])
 
                                 # dnslib doesn't like trailing dots
-                                if mname[-1] == ".": mname = mname[:-1]
-                                if rname[-1] == ".": rname = rname[:-1]
+                                if mname[-1] == ".":
+                                    mname = mname[:-1]
+                                if rname[-1] == ".":
+                                    rname = rname[:-1]
 
-                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](mname,rname,times)))
+                                response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](mname, rname, times)))
 
                             elif qtype == "NAPTR":
-                                order,preference,flags,service,regexp,replacement = fake_record.split(" ")
+                                order, preference, flags, service, regexp, replacement = fake_record.split(" ")
                                 order = int(order)
                                 preference = int(preference)
 
                                 # dnslib doesn't like trailing dots
-                                if replacement and replacement[-1] == ".": replacement = replacement[:-1]
+                                if replacement and replacement[-1] == ".":
+                                    replacement = replacement[:-1]
 
-                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](order,preference,flags,service,regexp,replacement)))
+                                response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](order, preference, flags, service, regexp, replacement)))
 
                             elif qtype == "SRV":
                                 priority, weight, port, target = fake_record.split(" ")
                                 priority = int(priority)
                                 weight = int(weight)
                                 port = int(port)
-                                if target[-1] == ".": target = target[:-1]
+                                if target[-1] == ".":
+                                    target = target[:-1]
 
-                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](priority, weight, port, target) ))
+                                response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](priority, weight, port, target)))
 
                             elif qtype == "DNSKEY":
                                 flags, protocol, algorithm, key = fake_record.split(" ")
@@ -268,36 +276,39 @@ class DNSHandler():
                                 algorithm = int(algorithm)
                                 key = base64.b64decode(("".join(key)).encode('ascii'))
 
-                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](flags, protocol, algorithm, key) ))
+                                response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](flags, protocol, algorithm, key)))
 
                             elif qtype == "RRSIG":
                                 covered, algorithm, labels, orig_ttl, sig_exp, sig_inc, key_tag, name, sig = fake_record.split(" ")
-                                covered = getattr(QTYPE,covered) # NOTE: Covered QTYPE
+                                covered = getattr(QTYPE, covered) # NOTE: Covered QTYPE
                                 algorithm = int(algorithm)
                                 labels = int(labels)
                                 orig_ttl = int(orig_ttl)
-                                sig_exp = int(time.mktime(time.strptime(sig_exp +'GMT',"%Y%m%d%H%M%S%Z")))
-                                sig_inc = int(time.mktime(time.strptime(sig_inc +'GMT',"%Y%m%d%H%M%S%Z")))
+                                sig_exp = int(time.mktime(time.strptime(sig_exp + 'GMT', "%Y%m%d%H%M%S%Z")))
+                                sig_inc = int(time.mktime(time.strptime(sig_inc + 'GMT', "%Y%m%d%H%M%S%Z")))
                                 key_tag = int(key_tag)
-                                if name[-1] == '.': name = name[:-1]
+                                if name[-1] == '.':
+                                    name = name[:-1]
                                 sig = base64.b64decode(("".join(sig)).encode('ascii'))
 
-                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](covered, algorithm, labels,orig_ttl, sig_exp, sig_inc, key_tag, name, sig) ))
+                                response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](covered, algorithm, labels, orig_ttl, sig_exp, sig_inc, key_tag, name, sig)))
 
                             else:
                                 # dnslib doesn't like trailing dots
-                                if fake_record[-1] == ".": fake_record = fake_record[:-1]
-                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](fake_record)))
+                                if fake_record[-1] == ".":
+                                    fake_record = fake_record[:-1]
+                                response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](fake_record)))
 
                     response = response.pack()
 
                 # Proxy the request
                 else:
                     print("[%s] %s: proxying the response of type '%s' for %s" % (time.strftime("%H:%M:%S"), self.client_address[0], qtype, qname))
-                    if self.server.log: self.server.log.write( "[%s] %s: proxying the response of type '%s' for %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], qtype, qname) )
+                    if self.server.log:
+                        self.server.log.write("[%s] %s: proxying the response of type '%s' for %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], qtype, qname))
 
                     nameserver_tuple = random.choice(self.server.nameservers).split('#')
-                    response = self.proxyrequest(data,*nameserver_tuple)
+                    response = self.proxyrequest(data, *nameserver_tuple)
 
         return response
 
@@ -314,7 +325,7 @@ class DNSHandler():
 
         # HACK: It is important to search the REGISTRY dictionary before iterating it so that
         # global matching ['*.*.*.*.*.*.*.*.*.*'] will match last. Use sorting for that.
-        for domain,host in sorted(REGISTRY.iteritems(), key=operator.itemgetter(1)):
+        for domain, host in sorted(REGISTRY.iteritems(), key=operator.itemgetter(1)):
 
             # NOTE: It is assumed that domain name was already lowercased
             #       when it was loaded through --file, --fakedomains or --truedomains
@@ -325,7 +336,7 @@ class DNSHandler():
             domain.reverse()
 
             # Compare domains in reverse.
-            for a,b in map(None,qnamelist,domain):
+            for a, b in map(None, qnamelist, domain):
                 if a != b and b != "*":
                     break
             else:
@@ -386,7 +397,7 @@ class UDPHandler(DNSHandler, BaseRequestHandler):
     UDP DNS Handler for incoming requests
     """
     def handle(self):
-        (data,socket) = self.request
+        (data, socket) = self.request
         response = self.parse(data)
 
         if response:
@@ -447,19 +458,19 @@ def parse_args():
 
     runtime_group = parser.add_argument_group('Optional runtime parameters')
     runtime_group.add_argument(
-        "-i","--interface", metavar="127.0.0.1 or ::1", default="127.0.0.1",
+        "-i", "--interface", metavar="127.0.0.1 or ::1", default="127.0.0.1",
         help='Listen interface to use. By default, 127.0.0.1 is used for IPv4\
         while ::1 is used for IPv6.'
     )
     runtime_group.add_argument(
-        "-6","--ipv6", action="store_true", default=False,
+        "-6", "--ipv6", action="store_true", default=False,
         help="Run in IPv6 mode.",
     )
     runtime_group.add_argument(
         '--logfile', help='Spcify a log file to record all activity.'
     )
     runtime_group.add_argument(
-        "-p","--port", metavar=53, default=53, type=int,
+        "-p", "--port", metavar=53, default=53, type=int,
         help='Port number to listen for DNS requests.',
     )
     runtime_group.add_argument(
@@ -467,7 +478,7 @@ def parse_args():
         default=True, help="Don't show headers.",
     )
     runtime_group.add_argument(
-        "-t","--tcp", action="store_true", default=False,
+        "-t", "--tcp", action="store_true", default=False,
         help="Use TCP DNS proxy instead of the default UDP.",
     )
     runtime_group.add_argument(
