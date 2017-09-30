@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #coding=utf-8
-__doc__ = """
+"""
 DNSChef is a highly configurable DNS Proxy for Penetration Testers
 and Malware Analysts. It is capable of fine configuration of which
 DNS replies to modify or to simply proxy with real responses.
@@ -33,6 +33,7 @@ from socketserver import BaseRequestHandler, TCPServer, UDPServer, \
 
 from dnslib import DNSRecord, DNSHeader, RR, DNSLabel, QR, QTYPE, RDMAP
 from IPy import IP
+
 
 HEADER = """
           _                _          __
