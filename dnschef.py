@@ -415,20 +415,20 @@ class TCPHandler(DNSHandler, BaseRequestHandler):
     """
     TCP DNS Handler for incoming requests
     """
-
     def handle(self):
+        # FIXME: would 1024 be enough?
         data = self.request.recv(1024)
 
-        # Remove the addition "length" parameter used in the
-        # TCP DNS protocol
+        # Remove the addition "length" parameter used in the TCP DNS protocol
         data = data[2:]
         response = self.parse(data)
 
+        # FIXME: handle error
         if response:
             # Calculate and add the additional "length" parameter
             # used in TCP DNS protocol
             length = binascii.unhexlify("%04x" % len(response))
-            self.request.sendall(length+response)
+            self.request.sendall(length + response)
 
 
 class ThreadedUDPServer(ThreadingMixIn, UDPServer):
