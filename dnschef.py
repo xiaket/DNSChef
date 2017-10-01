@@ -35,7 +35,7 @@ from dnslib import DNSRecord, DNSHeader, RR, DNSLabel, QR, QTYPE, RDMAP
 from IPy import IP
 
 
-HEADER = """
+HEADER = r"""
           _                _          __
          | |              | |        / _|
        __| |_ __  ___  ___| |__   ___| |_
@@ -117,7 +117,8 @@ class DNSHandler():
 
         except Exception as e:
             print("[%s] %s: ERROR: %s" % (time.strftime("%H:%M:%S"), self.client_address[0], "invalid DNS request"))
-            if self.server.log: self.server.log.write("[%s] %s: ERROR: %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], "invalid DNS request"))
+            if self.server.log:
+                self.server.log.write("[%s] %s: ERROR: %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], "invalid DNS request"))
 
         else:
             # Only Process DNS Queries
@@ -129,7 +130,8 @@ class DNSHandler():
                 qname = str(d.q.qname)
 
                 # Chop off the last period
-                if qname[-1] == '.': qname = qname[:-1]
+                if qname[-1] == '.':
+                    qname = qname[:-1]
 
                 qtype = QTYPE[d.q.qtype]
 
@@ -164,8 +166,10 @@ class DNSHandler():
                         times = tuple([int(t) for t in [t1, t2, t3, t4, t5]])
 
                         # dnslib doesn't like trailing dots
-                        if mname[-1] == ".": mname = mname[:-1]
-                        if rname[-1] == ".": rname = rname[:-1]
+                        if mname[-1] == ".":
+                            mname = mname[:-1]
+                        if rname[-1] == ".":
+                            rname = rname[:-1]
 
                         response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](mname, rname, times)))
 
@@ -185,7 +189,8 @@ class DNSHandler():
                         priority = int(priority)
                         weight = int(weight)
                         port = int(port)
-                        if target[-1] == ".": target = target[:-1]
+                        if target[-1] == ".":
+                            target = target[:-1]
 
                         response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](priority, weight, port, target)))
 
@@ -223,7 +228,8 @@ class DNSHandler():
 
                 elif qtype == "*" and not None in fake_records.values():
                     print("[%s] %s: cooking the response of type '%s' for %s with %s" % (time.strftime("%H:%M:%S"), self.client_address[0], "ANY", qname, "all known fake records."))
-                    if self.server.log: self.server.log.write("[%s] %s: cooking the response of type '%s' for %s with %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], "ANY", qname, "all known fake records."))
+                    if self.server.log:
+                        self.server.log.write("[%s] %s: cooking the response of type '%s' for %s with %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], "ANY", qname, "all known fake records."))
 
                     response = DNSRecord(DNSHeader(id=d.header.id, bitmap=d.header.bitmap, qr=1, aa=1, ra=1), q=d.q)
 
